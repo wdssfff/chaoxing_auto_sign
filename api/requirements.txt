@@ -1,0 +1,6 @@
+requests
+lxml
+BeautifulSoup4
+uvicorn
+fastapi
+mongo
