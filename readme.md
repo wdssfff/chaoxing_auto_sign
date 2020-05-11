@@ -78,6 +78,12 @@ https://github.com/mkdir700/chaoxing_auto_sign/blob/master/api/readme.md
 http://101.89.182.58:9090/sign
 ```
 
+温馨提示：
+
+接口目前使用人数过多，所以有环境能自己搭建，尽量使用自己搭建的
+
+人数过多，会出现签到不及时的现象
+
 请求代码示例：
 ```python
 import requests
