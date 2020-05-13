@@ -1,0 +1,14 @@
+# Created by .ignore support plugin (hsz.mobi)
+### Example user template template
+### Example user template
+
+# IntelliJ project files
+.idea
+*.iml
+out
+gen
+config1.py
+将删除 __pycache__/
+将删除 api/__pycache__/config.cpython-37.pyc
+将删除 api/__pycache__/db_handler.cpython-37.pyc
+将删除 local/config1.py

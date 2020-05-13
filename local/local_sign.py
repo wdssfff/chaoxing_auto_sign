@@ -9,6 +9,7 @@ import requests
 from config import *
 from lxml import etree
 from bs4 import BeautifulSoup
+from apscheduler.schedulers.blocking import BlockingScheduler
 requests.packages.urllib3.disable_warnings()
 
 
@@ -436,4 +437,7 @@ def local_run():
 
 
 if __name__ == '__main__':
-    local_run()
+    scheduler = BlockingScheduler()
+    scheduler.add_job(local_run, 'interval', minutes=10)
+    print('脚本已开始运行')
+    scheduler.start()
