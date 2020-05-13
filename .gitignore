@@ -4,6 +4,7 @@
 
 # IntelliJ project files
 .idea
+#*.iml
 *.iml
 out
 gen
@@ -12,3 +13,5 @@ config1.py
 将删除 api/__pycache__/config.cpython-37.pyc
 将删除 api/__pycache__/db_handler.cpython-37.pyc
 将删除 local/config1.py
+将删除 local/__pycache__/config1.cpython-37.pyc
+将删除 local/cookies.json
