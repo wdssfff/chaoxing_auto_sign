@@ -6,11 +6,11 @@ import re
 import json
 import random
 import requests
-from config import *
 from lxml import etree
 from bs4 import BeautifulSoup
 from apscheduler.schedulers.blocking import BlockingScheduler
 requests.packages.urllib3.disable_warnings()
+from config import *
 
 
 class AutoSign(object):
@@ -113,11 +113,23 @@ class AutoSign(object):
                 if data[activeid]:
                     return True
             except BaseException:
-                # 如果出错，则表示没有此activeid，添加此activeid
-                with open(ACTIVEID_FILE_PATH, 'w') as f2:
-                    data[activeid] = True
-                    json.dump(data, f2)
+                # 如果出错，则表示没有此activeid
+                # with open(ACTIVEID_FILE_PATH, 'w') as f2:
+                #     data[activeid] = True
+                #     json.dump(data, f2)
                 return False
+
+    def save_activeid(self, activeid):
+        """保存已成功签到的activeid"""
+        activeid += self.username
+        if "activeid.json" not in os.listdir(ACTIVEID_PATH):
+            with open(ACTIVEID_FILE_PATH, 'w+') as f:
+                f.write("{}")
+        with open(ACTIVEID_FILE_PATH, 'r') as f:
+            data = json.load(f)
+            with open(ACTIVEID_FILE_PATH, 'w') as f2:
+                data[activeid] = True
+                json.dump(data, f2)
 
     def get_all_classid(self) -> list:
         """获取课程主页中所有课程的classid和courseid"""
@@ -132,7 +144,7 @@ class AutoSign(object):
         for i, v in enumerate(courseId_list):
             res.append((v['value'], classId_list[i]['value'],
                         classname_list[i].find_next('a').text))
-        print(res)
+        print('课程列表: ', res)
         return res
 
     def get_sign_type(self, classid, courseid, activeid):
@@ -146,6 +158,7 @@ class AutoSign(object):
     async def get_activeid(self, classid, courseid, classname):
         """访问任务面板获取课程的活动id"""
         re_rule = r'([\d]+),2'
+        await asyncio.sleep(1)
         r = self.session.get(
             'https://mobilelearn.chaoxing.com/widget/pcpick/stu/index?courseId={}&jclassId={}'.format(
                 courseid, classid), headers=self.headers, verify=False)
@@ -153,7 +166,6 @@ class AutoSign(object):
         res = []
         h = etree.HTML(r.text)
         activeid_list = h.xpath('//*[@id="startList"]/div/div/@onclick')
-        # sign_type_list = h.xpath('//*[@id="startList"]/div/div/div/a/text()')
         for activeid in activeid_list:
             activeid = re.findall(re_rule, activeid)
             if not activeid:
@@ -162,20 +174,17 @@ class AutoSign(object):
             res.append((activeid[0], sign_type[0]))
 
         n = len(res)
-        if n == 0:
-            return None
-        else:
+        if n:
             d = {'num': n, 'class': {}}
             for i in range(n):
-                if self.check_activeid(res[i][0]):
-                    continue
-                d['class'][i] = {
-                    'classid': classid,
-                    'courseid': courseid,
-                    'activeid': res[i][0],
-                    'classname': classname,
-                    'sign_type': res[i][1]
-                }
+                if not self.check_activeid(res[i][0]):
+                    d['class'][i] = {
+                        'classid': classid,
+                        'courseid': courseid,
+                        'activeid': res[i][0],
+                        'classname': classname,
+                        'sign_type': res[i][1]
+                    }
             return d
 
     def general_sign(self, classid, courseid, activeid):
@@ -309,7 +318,7 @@ class AutoSign(object):
             res_dict = json.loads(res.text)
             return (res_dict['objectId'])
 
-    def sign_in_type_judgment(self, classid, courseid, activeid, sign_type):
+    def sign_in_judgment_and_exec(self, classid, courseid, activeid, sign_type):
         """签到类型的逻辑判断"""
         if "手势" in sign_type:
             # test:('拍照签到', 'success')
@@ -342,7 +351,7 @@ class AutoSign(object):
         for r in result:
             if r:
                 for d in r['class'].values():
-                    s = self.sign_in_type_judgment(
+                    s = self.sign_in_judgment_and_exec(
                         d['classid'],
                         d['courseid'],
                         d['activeid'],
@@ -354,6 +363,8 @@ class AutoSign(object):
                             'date': s['date'],
                             'status': s['status']
                         }
+                        # 签到成功后，新增activeid
+                        self.save_activeid(d['activeid'])
                         res.append(sign_msg)
 
         if res:
@@ -438,6 +449,6 @@ def local_run():
 
 if __name__ == '__main__':
     scheduler = BlockingScheduler()
-    scheduler.add_job(local_run, 'interval', minutes=10)
+    scheduler.add_job(local_run, 'interval', minutes=5)
     print('脚本已开始运行')
     scheduler.start()
