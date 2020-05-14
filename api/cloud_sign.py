@@ -137,9 +137,7 @@ class AutoSign(object):
 
         n = len(res)
         print(res, n)
-        if n == 0:
-            return None
-        else:
+        if n != 0:
             d = {'num': n, 'class': {}}
             for i in range(n):
                 if self.check_activeid(res[i][0]):
@@ -202,7 +200,6 @@ class AutoSign(object):
                     # 将签到成功activeid保存至数据库
                     self.mongo.to_save_istext_activeid(d['activeid'])
                     res.append(sign_msg)
-
         if res:
             final_msg = {
                 'msg': 2001,
