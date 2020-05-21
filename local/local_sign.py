@@ -21,7 +21,8 @@ class AutoSign(object):
             'Accept-Encoding': 'gzip, deflate',
             'Accept-Language': 'zh-CN,zh;q=0.9',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36'}
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36',
+        }
         self.session = requests.session()
         self.session.headers = self.headers
         self.username = username
@@ -65,22 +66,20 @@ class AutoSign(object):
             # 找到后设置cookies
             cookies_jar = requests.utils.cookiejar_from_dict(cookies)
             self.session.cookies = cookies_jar
-
+            print('cookie状态:', end=' ')
             # 检测cookies是否有效
             r = self.session.get(
-                'http://notice.chaoxing.com/pc/notice/getUnitList')
-            try:
-                r = r.json()
-            except BaseException:
-                print("cookies已失效")
+                'http://notice.chaoxing.com/pc/notice/getUnitList', allow_redirects=False)
+            if r.status_code != 200:
+                print("失效, 正在重新登录")
                 return False
-
-            if r['status']:
-                print("cookies有效哦")
-                return True
             else:
-                print("cookies已失效")
-                return False
+                r = r.json()
+                if r['status']:
+                    print("有效")
+                    return True
+            print("失效, 正在重新登录")
+            return False
 
     def login(self):
         # 登录-手机邮箱登录
@@ -114,9 +113,6 @@ class AutoSign(object):
                     return True
             except BaseException:
                 # 如果出错，则表示没有此activeid
-                # with open(ACTIVEID_FILE_PATH, 'w') as f2:
-                #     data[activeid] = True
-                #     json.dump(data, f2)
                 return False
 
     def save_activeid(self, activeid):
@@ -134,9 +130,7 @@ class AutoSign(object):
     def get_all_classid(self) -> list:
         """获取课程主页中所有课程的classid和courseid"""
         res = []
-        r = self.session.get(
-            'http://mooc1-2.chaoxing.com/visit/interaction',
-            headers=self.headers)
+        r = self.session.get('http://mooc1-2.chaoxing.com/visit/interaction', headers=self.headers)
         soup = BeautifulSoup(r.text, "lxml")
         courseId_list = soup.find_all('input', attrs={'name': 'courseId'})
         classId_list = soup.find_all('input', attrs={'name': 'classId'})
@@ -380,7 +374,7 @@ class AutoSign(object):
         return final_msg
 
 
-def server_chan_send(msgs, sckey=None):
+def server_chan_send(msgs):
     """server酱将消息推送至微信"""
     desp = ''
     for msg in msgs:
@@ -393,12 +387,7 @@ def server_chan_send(msgs, sckey=None):
         'text': '您的网课签到消息来啦！',
         'desp': desp
     }
-    if sckey:
-        requests.get(
-            'https://sc.ftqq.com/{}.send'.format(sckey),
-            params=params)
-    else:
-        requests.get(SERVER_CHAN['url'], params=params)
+    requests.get(SERVER_CHAN['url'], params=params)
 
 
 def debug():
@@ -441,14 +430,16 @@ def gen_run():
 
 
 def local_run():
-    if DEBUG:
-        print(debug())
-    else:
-        print(gen_run())
+    print("="*50)
+    print("[{}]".format(time.strftime('%Y-%m-%d %H:%M:%S')))
+    print(
+        "签到状态: ",
+        debug() if DEBUG else gen_run()
+    )
 
 
 if __name__ == '__main__':
     scheduler = BlockingScheduler()
-    scheduler.add_job(local_run, 'interval', minutes=5)
-    print('脚本已开始运行')
+    scheduler.add_job(local_run, 'interval', hours=i_hours, minutes=i_minutes, seconds=i_seconds)
+    print('已开启定时执行,每间隔[{}时{}分{}秒]执行一次签到任务'.format(i_hours, i_minutes, i_seconds))
     scheduler.start()
