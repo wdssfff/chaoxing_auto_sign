@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 from apscheduler.schedulers.blocking import BlockingScheduler
 requests.packages.urllib3.disable_warnings()
 from config import *
+from log import log_error_msg
 
 
 class AutoSign(object):
@@ -294,10 +295,10 @@ class AutoSign(object):
         """上传图片"""
         # 从图片文件夹内随机选择一张图片
         all_img = os.listdir(IMAGE_PATH)
-        img = IMAGE_PATH + random.choice(all_img)
         if len(all_img) == 0:
-            return "da82dee9f197a1ab22614efd39e20c14"
+            return "a5d588f7bce1994323c348982332e470"
         else:
+            img = IMAGE_PATH + random.choice(all_img)
             uid = self.session.cookies.get_dict()['UID']
             url = 'https://pan-yz.chaoxing.com/upload'
             files = {'file': (img, open(img, 'rb'),
@@ -315,7 +316,6 @@ class AutoSign(object):
     def sign_in_judgment_and_exec(self, classid, courseid, activeid, sign_type):
         """签到类型的逻辑判断"""
         if "手势" in sign_type:
-            # test:('拍照签到', 'success')
             return self.hand_sign(classid, courseid, activeid)
         elif "二维码" in sign_type:
             return self.qcode_sign(activeid)
@@ -390,7 +390,9 @@ def server_chan_send(msgs):
     requests.get(SERVER_CHAN['url'], params=params)
 
 
-def debug():
+@log_error_msg
+def gen_run():
+    """本地运行使用"""
     s = AutoSign(USER_INFO['username'], USER_INFO['password'])
     login_status = s.set_cookies()
     if login_status != 1000:
@@ -407,34 +409,12 @@ def debug():
     return detail
 
 
-def gen_run():
-    """本地运行使用"""
-    try:
-        s = AutoSign(USER_INFO['username'], USER_INFO['password'])
-        login_status = s.set_cookies()
-        if login_status != 1000:
-            return {
-                'msg': login_status,
-                'detail': '登录失败，' + STATUS_CODE_DICT[login_status]
-            }
-
-        result = s.sign_tasks_run()
-        detail = result['detail']
-        if result['msg'] == 2001:
-            if SERVER_CHAN['status']:
-                server_chan_send(detail)
-
-        return detail
-    except BaseException:
-        return {'msg': 4000, 'detail': STATUS_CODE_DICT[4000]}
-
-
 def local_run():
     print("="*50)
     print("[{}]".format(time.strftime('%Y-%m-%d %H:%M:%S')))
     print(
         "签到状态: ",
-        debug() if DEBUG else gen_run()
+        gen_run()
     )
 
 
