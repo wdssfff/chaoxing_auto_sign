@@ -37,9 +37,6 @@ longitude = "-1"
 # ip地址
 clientip = "0.0.0.0"
 
-# DEBUG开关
-DEBUG = True
-
 # 状态码
 STATUS_CODE_DICT = {
     1000: '登录成功',
