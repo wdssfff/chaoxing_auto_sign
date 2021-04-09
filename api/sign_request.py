@@ -46,9 +46,17 @@ class SignRequest(object):
             'status': 3001
         }
     
-    async def qcode_sign(self):
+    async def qcode_sign(self, enc):
         """二维码签到"""
+        print('enc', enc)
+        if not enc:
+            return {
+                'date': time.strftime("%m-%d %H:%M", time.localtime()),
+                'status': 4001
+            }
+        
         params = {
+            'enc': enc,
             'name': '',
             'activeId': self.activeid,
             'uid': '',
@@ -59,13 +67,22 @@ class SignRequest(object):
             'fid': '',
             'appType': '15'
         }
+        
         async with self.session.request('GET', 'https://mobilelearn.chaoxing.com/pptSign/stuSignajax',
-                                        params=params) as resp:
+                                        params=params,
+                                        allow_redirects=False) as resp:
             assert resp.status == 200
-        return {
-            'date': time.strftime("%m-%d %H:%M", time.localtime()),
-            'status': 3004
-        }
+            text = await resp.text()
+            if "失败" in text:
+                return {
+                    'date': time.strftime("%m-%d %H:%M", time.localtime()),
+                    'status': 4002
+                }
+            
+            return {
+                'date': time.strftime("%m-%d %H:%M", time.localtime()),
+                'status': 3004
+            }
     
     async def addr_sign(self):
         """位置签到"""

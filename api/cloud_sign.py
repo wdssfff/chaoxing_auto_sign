@@ -15,7 +15,7 @@ from sign_request import *
 
 class AutoSign(object):
     
-    def __init__(self, username, password, schoolid=None):
+    def __init__(self, username, password, schoolid=None, enc=None):
         """初始化就进行登录"""
         self.headers = {
             'Accept-Encoding': 'gzip, deflate',
@@ -25,6 +25,7 @@ class AutoSign(object):
         self.username = username
         self.password = password
         self.schoolid = '' if schoolid is None else schoolid
+        self.enc = '' if enc is None else enc
         self.mongo = SignMongoDB(username)
     
     async def set_cookies(self, client: ClientSession):
@@ -187,7 +188,7 @@ class AutoSign(object):
         if "手势" in sign_type:
             return await sign.hand_sign()
         elif "二维码" in sign_type:
-            return await sign.qcode_sign()
+            return await sign.qcode_sign(self.enc)
         elif "位置" in sign_type:
             return await sign.addr_sign()
         elif "拍照" in sign_type:
@@ -262,7 +263,10 @@ class AutoSign(object):
 async def interface(payload):
     try:
         async with aiohttp.ClientSession() as client:
-            auto_sign= AutoSign(payload['username'], payload['password'], payload['schoolid'])
+            auto_sign= AutoSign(username=payload['username'],
+                                password=payload['password'],
+                                schoolid=payload['schoolid'],
+                                enc=payload['enc'])
             login_status = await auto_sign.set_cookies(client)
             if login_status != 1000:
                 return {
