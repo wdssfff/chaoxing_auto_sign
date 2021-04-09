@@ -16,4 +16,3 @@ def log_error_msg(func):
             logger.exception(e)
             return '程序执行出错,错误信息已在记录日志'
     return warp
-

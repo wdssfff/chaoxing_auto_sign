@@ -1,22 +1,23 @@
 # -*- coding: utf8 -*-
 import os
-import time
-import asyncio
 import re
+import time
 import json
 import random
-import requests
+import asyncio
+from typing import Optional, List, Dict
+
+from aiohttp import ClientSession
+from aiohttp.cookiejar import SimpleCookie
 from lxml import etree
 from bs4 import BeautifulSoup
-from apscheduler.schedulers.blocking import BlockingScheduler
-requests.packages.urllib3.disable_warnings()
-from log import log_error_msg
+
 from config import *
 
 
 class AutoSign(object):
-
-    def __init__(self, username, password, schoolid=None):
+    
+    def __init__(self, username, password, schoolid=None, enc=None):
         """初始化就进行登录"""
         self.headers = {
             'Accept-Encoding': 'gzip, deflate',
@@ -24,38 +25,61 @@ class AutoSign(object):
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36',
         }
-        self.session = requests.session()
-        self.session.headers = self.headers
+        self.session = ClientSession(headers=self.headers)
         self.username = username
         self.password = password
-        self.schoolid = schoolid
-
-    def set_cookies(self):
+        self.schoolid = '' if schoolid is None else schoolid
+        self.enc = '' if enc is None else enc
+    
+    async def check_login_status(self, status, text):
+        if status == 403:
+            return 1002
+        data = json.loads(text)
+        if data['result']:
+            return 1000  # 登录成功
+        else:
+            return 1001  # 登录信息有误
+    
+    async def set_cookies(self):
         """设置cookies"""
-        if not self.check_cookies():
+        cookie = await self.check_cookies()
+        if not cookie:
             # 无效则重新登录，并保存cookies
-            login_status = self.login()
+            status, text, cookie = await self.login()
+            login_status = await self.check_login_status(status, text)
+            
             if login_status == 1000:
-                self.save_cookies()
+                cookies = self.dict_from_simple_cookie(cookie)
+                self.save_cookies(cookies)
             else:
                 return 1001
+        else:
+            self.session.cookie_jar.update_cookies(cookie)
         return 1000
-
-    def save_cookies(self):
+    
+    def dict_from_simple_cookie(self, cookies) -> dict:
+        """
+        从响应对象中抽取cookies
+        """
+        result = {}
+        for key, value in cookies.items():
+            result[key] = value.value
+        return result
+    
+    def save_cookies(self, cookies: dict):
         """保存cookies"""
-        new_cookies = self.session.cookies.get_dict()
         with open(COOKIES_FILE_PATH, "r") as f:
             data = json.load(f)
-            data[self.username] = new_cookies
+            data[self.username] = cookies
             with open(COOKIES_FILE_PATH, 'w') as f2:
                 json.dump(data, f2)
-
-    def check_cookies(self):
+    
+    async def check_cookies(self) -> Optional[SimpleCookie]:
         """检测json文件内是否存有cookies,有则检测，无则登录"""
         if "cookies.json" not in os.listdir(COOKIES_PATH):
             with open(COOKIES_FILE_PATH, 'w+') as f:
                 f.write("{}")
-
+        
         with open(COOKIES_FILE_PATH, 'r') as f:
             # json文件有无账号cookies, 没有，则直接返回假
             try:
@@ -63,46 +87,44 @@ class AutoSign(object):
                 cookies = data[self.username]
             except Exception:
                 return False
-
-            # 找到后设置cookies
-            cookies_jar = requests.utils.cookiejar_from_dict(cookies)
-            self.session.cookies = cookies_jar
-            print('cookie状态:', end=' ')
-            # 检测cookies是否有效
-            r = self.session.get(
-                'http://mooc1-1.chaoxing.com/api/workTestPendingNew',
-                allow_redirects=False)
-            if r.status_code != 200:
-                print("失效, 正在重新登录")
-                return False
+        
+        # 检测cookies是否有效
+        async with self.session.request(method='GET',
+                                        url='http://mooc1-1.chaoxing.com/api/workTestPendingNew',
+                                        allow_redirects=False,
+                                        cookies=cookies) as resp:
+            if resp.status != 200:
+                print("cookie失效")
+                return None
             else:
-                print("有效!")
-                return True
-
-    def login(self):
-        # 登录-手机邮箱登录
-        r = self.session.get(
-            'https://passport2.chaoxing.com/api/login?name={}&pwd={}&schoolid={}&verify=0'.format(
-                self.username,
-                self.password,
-                self.schoolid if self.schoolid else ""),
-            headers=self.headers)
-        if r.status_code == 403:
-            return 1002
-        data = json.loads(r.text)
-        if data['result']:
-            print("登录成功")
-            return 1000  # 登录成功
-        else:
-            return 1001  # 登录信息有误
-
+                print("cookie有效!")
+                return cookies
+    
+    async def login(self):
+        """
+        登录并返回响应
+        """
+        params = {
+            'name': self.username,
+            'pwd': self.password,
+            'schoolid': self.schoolid,
+            'verify': 0
+        }
+        async with self.session.request(method='GET',
+                                        url='https://passport2.chaoxing.com/api/login',
+                                        params=params) as resp:
+            status = resp.status
+            text = await resp.text()
+            cookies = resp.cookies
+            return status, text, cookies
+    
     def check_activeid(self, activeid):
         """检测activeid是否存在，不存在则添加"""
         activeid += self.username
         if "activeid.json" not in os.listdir(ACTIVEID_PATH):
             with open(ACTIVEID_FILE_PATH, 'w+') as f:
                 f.write("{}")
-
+        
         with open(ACTIVEID_FILE_PATH, 'r') as f:
             try:
                 # 读取文件
@@ -112,7 +134,7 @@ class AutoSign(object):
             except BaseException:
                 # 如果出错，则表示没有此activeid
                 return False
-
+    
     def save_activeid(self, activeid):
         """保存已成功签到的activeid"""
         activeid += self.username
@@ -124,12 +146,15 @@ class AutoSign(object):
             with open(ACTIVEID_FILE_PATH, 'w') as f2:
                 data[activeid] = True
                 json.dump(data, f2)
-
-    def get_all_classid(self) -> list:
+    
+    async def get_all_classid(self) -> list:
         """获取课程主页中所有课程的classid和courseid"""
         res = []
-        r = self.session.get('http://mooc1-2.chaoxing.com/visit/interaction', headers=self.headers)
-        soup = BeautifulSoup(r.text, "lxml")
+        async with self.session.request(method='GET',
+                                        url='http://mooc1-2.chaoxing.com/visit/interaction') as resp:
+            text = await resp.text()
+        
+        soup = BeautifulSoup(text, "lxml")
         courseId_list = soup.find_all('input', attrs={'name': 'courseId'})
         classId_list = soup.find_all('input', attrs={'name': 'classId'})
         classname_list = soup.find_all('h3', class_="clearfix")
@@ -138,29 +163,43 @@ class AutoSign(object):
                         classname_list[i].find_next('a').text))
         print('课程列表: ', res)
         return res
-
-    def get_sign_type(self, classid, courseid, activeid):
+    
+    async def get_sign_type(self, classid, courseid, activeid):
         """获取签到类型"""
-        sign_url = 'https://mobilelearn.chaoxing.com/widget/sign/pcStuSignController/preSign?activeId={}&classId={}&courseId={}'.format(activeid, classid, courseid)
-        response = self.session.get(sign_url, headers=self.headers)
-        h = etree.HTML(response.text)
+        params = {
+            'activeId': activeid,
+            'classId': classid,
+            'courseId': courseid
+        }
+        async with self.session.request(method='GET',
+                                        url='https://mobilelearn.chaoxing.com/widget/sign/pcStuSignController/preSign',
+                                        params=params) as resp:
+            text = await resp.text()
+        h = etree.HTML(text)
         sign_type = h.xpath('//div[@class="location"]/span/text()')
         return sign_type
-
+    
     async def get_activeid(self, classid, courseid, classname):
         """访问任务面板获取课程的活动id"""
-        re_rule = r'([\d]+),2'
-        r = self.session.get(
-            'https://mobilelearn.chaoxing.com/widget/pcpick/stu/index?courseId={}&jclassId={}'.format(
-                courseid, classid), headers=self.headers, verify=False)
         res = []
-        h = etree.HTML(r.text)
+        re_rule = r'([\d]+),2'
+        params = {
+            'courseId': courseid,
+            'jclassId': classid
+        }
+        async with self.session.request(method='GET',
+                                        url="https://mobilelearn.chaoxing.com/widget/pcpick/stu/index",
+                                        verify_ssl=False,
+                                        params=params) as resp:
+            text = await resp.text()
+        h = etree.HTML(text)
         activeid_list = h.xpath('//*[@id="startList"]/div/div/@onclick')
+        
         for activeid in activeid_list:
             activeid = re.findall(re_rule, activeid)
             if not activeid:
                 continue
-            sign_type = self.get_sign_type(classid, courseid, activeid[0])
+            sign_type = await self.get_sign_type(classid, courseid, activeid[0])
             res.append((activeid[0], sign_type[0]))
         n = len(res)
         if n:
@@ -175,17 +214,24 @@ class AutoSign(object):
                         'sign_type': res[i][1]
                     }
             return d
-
-    def general_sign(self, classid, courseid, activeid):
+    
+    async def general_sign(self, classid, courseid, activeid):
         """普通签到"""
-        r = self.session.get(
-            'https://mobilelearn.chaoxing.com/widget/sign/pcStuSignController/preSign?activeId={}&classId={}&fid=39037&courseId={}'.format(
-                activeid,
-                classid,
-                courseid),
-            headers=self.headers,
-            verify=False)
-        title = re.findall('<title>(.*)</title>', r.text)[0]
+        params = {
+            'activeId': activeid,
+            'classId': classid,
+            'fid': '39037',
+            'courseId': courseid
+        }
+        async with self.session.request(
+            method='GET',
+            url="https://mobilelearn.chaoxing.com/widget/sign/pcStuSignController/preSign",
+            params=params,
+            verify_ssl=False
+        ) as resp:
+            text = await resp.text()
+        
+        title = re.findall('<title>(.*)</title>', text)[0]
         if "签到成功" not in title:
             # 网页标题不含签到成功，则为拍照签到
             return self.tphoto_sign(activeid)
@@ -195,46 +241,58 @@ class AutoSign(object):
                 'status': title
             }
             return s
-
-    def hand_sign(self, classid, courseid, activeid):
+    
+    async def hand_sign(self, classid, courseid, activeid):
         """手势签到"""
-        hand_sign_url = "https://mobilelearn.chaoxing.com/widget/sign/pcStuSignController/signIn?&courseId={}&classId={}&activeId={}".format(
-            courseid, classid, activeid)
-        r = self.session.get(hand_sign_url, headers=self.headers, verify=False)
-        title = re.findall('<title>(.*)</title>', r.text)
+        params = {
+            'courseId': courseid,
+            'classId': classid,
+            'activeId': activeid
+        }
+        async with self.session.request(
+            method='GET',
+            url="https://mobilelearn.chaoxing.com/widget/sign/pcStuSignController/signIn",
+            params=params,
+            verify_ssl=False
+        ) as resp:
+            text = await resp.text()
+        
+        title = re.findall('<title>(.*)</title>', text)
         s = {
             'date': time.strftime("%m-%d %H:%M", time.localtime()),
             'status': title
         }
         return s
-
-    def qcode_sign(self, activeId):
+    
+    async def qcode_sign(self, activeid):
         """二维码签到"""
         params = {
+            'enc': self.enc,
             'name': '',
-            'activeId': activeId,
+            'activeId': activeid,
             'uid': '',
-            'clientip': clientip,
+            'clientip': '',
             'useragent': '',
-            'latitude': latitude,
-            'longitude': longitude,
+            'latitude': '-1',
+            'longitude': '-1',
             'fid': '',
             'appType': '15'
         }
-        res = self.session.get(
-            'https://mobilelearn.chaoxing.com/pptSign/stuSignajax',
-            params=params)
-        s = {
-            'date': time.strftime("%m-%d %H:%M", time.localtime()),
-            'status': res.text
-        }
-        return s
 
-    def addr_sign(self, activeId):
+        async with self.session.request('GET', 'https://mobilelearn.chaoxing.com/pptSign/stuSignajax',
+                                        params=params,
+                                        allow_redirects=False) as resp:
+            text = await resp.text()
+            return {
+                'date': time.strftime("%m-%d %H:%M", time.localtime()),
+                'status': text
+            }
+    
+    async def addr_sign(self, activeid):
         """位置签到"""
         params = {
             'name': '',
-            'activeId': activeId,
+            'activeId': activeid,
             'address': '中国',
             'uid': '',
             'clientip': clientip,
@@ -244,21 +302,24 @@ class AutoSign(object):
             'appType': '15',
             'ifTiJiao': '1'
         }
-        res = self.session.get(
-            'https://mobilelearn.chaoxing.com/pptSign/stuSignajax',
-            params=params)
-        s = {
+        async with self.session.request(
+            method="GET",
+            url="https://mobilelearn.chaoxing.com/pptSign/stuSignajax",
+            params=params
+        ) as resp:
+            text = await resp.text()
+        
+        return {
             'date': time.strftime("%m-%d %H:%M", time.localtime()),
-            'status': res.text
+            'status': text
         }
-        return s
-
-    def tphoto_sign(self, activeId):
+    
+    async def tphoto_sign(self, activeid, uid):
         """拍照签到"""
-        objectId = self.upload_img()
+        objectId = await self.upload_img(uid)
         params = {
             'name': '',
-            'activeId': activeId,
+            'activeId': activeid,
             'address': '中国',
             'uid': '',
             'clientip': clientip,
@@ -269,23 +330,30 @@ class AutoSign(object):
             'ifTiJiao': '1',
             'objectId': objectId
         }
-        res = self.session.get(
-            'https://mobilelearn.chaoxing.com/pptSign/stuSignajax',
-            params=params)
-        s = {
+        async with self.session.request(
+            method="GET",
+            url="https://mobilelearn.chaoxing.com/pptSign/stuSignajax",
+            params=params
+        ) as resp:
+            text = await resp.text()
+        
+        return {
             'date': time.strftime("%m-%d %H:%M", time.localtime()),
-            'status': res.text
+            'status': text
         }
-        return s
-
-    def get_token(self):
+    
+    async def get_token(self):
         """获取上传文件所需参数token"""
         url = 'https://pan-yz.chaoxing.com/api/token/uservalid'
-        res = self.session.get(url, headers=self.headers)
-        token_dict = json.loads(res.text)
-        return (token_dict['_token'])
-
-    def upload_img(self):
+        async with self.session.request(
+            method='GET',
+            url=url
+        ) as resp:
+            text = await resp.text()
+        token_dict = json.loads(text)
+        return token_dict['_token']
+    
+    async def upload_img(self, uid):
         """上传图片"""
         # 从图片文件夹内随机选择一张图片
         try:
@@ -293,74 +361,90 @@ class AutoSign(object):
         except Exception as e:
             os.mkdir(IMAGE_PATH)
             all_img = 0
-
+        
         if len(all_img) == 0:
             return "a5d588f7bce1994323c348982332e470"
         else:
             img = IMAGE_PATH + random.choice(all_img)
-            uid = self.session.cookies.get_dict()['UID']
+            # uid = self.session.cookies.get_dict()['UID']
             url = 'https://pan-yz.chaoxing.com/upload'
             files = {'file': (img, open(img, 'rb'),
                               'image/webp,image/*',), }
-            res = self.session.post(
-                url,
-                data={
-                    'puid': uid,
-                    '_token': self.get_token()},
-                files=files,
-                headers=self.headers)
-            res_dict = json.loads(res.text)
-            return (res_dict['objectId'])
-
-    def sign_in_judgment_and_exec(self, classid, courseid, activeid, sign_type):
-        """签到类型的逻辑判断"""
+            token = await self.get_token()
+            data = {
+                'puid': uid,
+                '_token': token
+            }
+            async with self.session.request(
+                method='POST',
+                url=url,
+                data=data,
+                files=files
+            ) as resp:
+                text = await resp.text()
+            # res = self.session.post(
+            #     url,
+            #     data={
+            #         'puid': uid,
+            #         '_token': self.get_token()
+            #     },
+            #     files=files,
+            #     headers=self.headers)
+            res_dict = json.loads(text)
+            return res_dict['objectId']
+    
+    async def send_sign_request(self, classid, courseid, activeid, sign_type):
+        """发送签到请求"""
         if "手势" in sign_type:
-            return self.hand_sign(classid, courseid, activeid)
+            return await self.hand_sign(classid, courseid, activeid)
         elif "二维码" in sign_type:
-            return self.qcode_sign(activeid)
+            return await self.qcode_sign(activeid)
         elif "位置" in sign_type:
-            return self.addr_sign(activeid)
+            return await self.addr_sign(activeid)
         elif "拍照" in sign_type:
-            return self.tphoto_sign(activeid)
+            return await self.tphoto_sign(activeid)
         else:
-            r = self.general_sign(classid, courseid, activeid)
-            return r
-
-    def sign_tasks_run(self):
+            return await self.general_sign(classid, courseid, activeid)
+    
+    async def start_sign_task(self):
         """开始所有签到任务"""
         tasks = []
         res = []
+        await self.set_cookies()
         # 获取所有课程的classid和course_id
-        classid_courseId = self.get_all_classid()
-
-        # 使用协程获取所有课程activeid和签到类型
+        classid_courseId = await self.get_all_classid()
+        
+        # 获取所有课程activeid和签到类型
         for i in classid_courseId:
             coroutine = self.get_activeid(i[1], i[0], i[2])
             tasks.append(coroutine)
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(asyncio.gather(*tasks))
-        loop.close()
-
-        for r in result:
-            if r:
-                for d in r['class'].values():
-                    s = self.sign_in_judgment_and_exec(
-                        d['classid'],
-                        d['courseid'],
-                        d['activeid'],
-                        d['sign_type'])
-                    if s:
-                        # 签到课程， 签到时间， 签到状态
-                        sign_msg = {
-                            'name': d['classname'],
-                            'date': s['date'],
-                            'status': s['status']
-                        }
-                        # 签到成功后，新增activeid
-                        self.save_activeid(d['activeid'])
-                        res.append(sign_msg)
-
+        results: List[Dict] = await asyncio.gather(*tasks)
+        
+        for r in results:
+            if r is None:
+                continue
+            
+            for d in r['class'].values():
+                resp = await self.send_sign_request(
+                    d['classid'],
+                    d['courseid'],
+                    d['activeid'],
+                    d['sign_type']
+                )
+                if resp:
+                    # 签到课程， 签到时间， 签到状态
+                    sign_msg = {
+                        'name': d['classname'],
+                        'date': resp['date'],
+                        'status': resp['status']
+                    }
+                    res.append(sign_msg)
+    
+                    if '失败' in resp['status']:
+                        continue
+                    # 签到成功后，新增activeid
+                    self.save_activeid(d['activeid'])
+        
         if res:
             final_msg = {
                 'msg': 2001,
@@ -372,55 +456,6 @@ class AutoSign(object):
                 'detail': STATUS_CODE_DICT[2000]
             }
         return final_msg
-
-
-def server_chan_send(msgs):
-    """server酱将消息推送至微信"""
-    desp = ''
-    for msg in msgs:
-        desp = '|  **课程名**  |   {}   |\r\r| :----------: | :---------- |\r\r'.format(
-            msg['name'])
-        desp += '| **签到时间** |   {}   |\r\r'.format(msg['date'])
-        desp += '| **签到状态** |   {}   |\r\r'.format(msg['status'])
-
-    params = {
-        'text': '您的网课签到消息来啦！',
-        'desp': desp
-    }
-    requests.get(SERVER_CHAN['url'], params=params)
-
-
-@log_error_msg
-def gen_run(username, password):
-    """运行"""
-    auto_sign = AutoSign(username, password)
-    login_status = auto_sign.login()
-    if login_status != 1000:
-        return {
-            'msg': login_status,
-            'detail': '登录失败，' + STATUS_CODE_DICT[login_status]
-        }
-
-    result = auto_sign.sign_tasks_run()
-    detail = result['detail']
-    # if result['msg'] == 2001:
-    #     if SERVER_CHAN['status']:
-    #         server_chan_send(detail)
-    return detail
-
-
-def local_run():
-    print("="*50)
-    print("[{}]".format(time.strftime('%Y-%m-%d %H:%M:%S')))
-    for info in USER_INFOS:
-        print(
-            "签到状态: ",
-            gen_run(info['username'], info['password'])
-        )
-
-
-if __name__ == '__main__':
-    scheduler = BlockingScheduler()
-    scheduler.add_job(local_run, 'interval', hours=i_hours, minutes=i_minutes, seconds=i_seconds)
-    print('已开启定时执行,每间隔[{}时{}分{}秒]执行一次签到任务'.format(i_hours, i_minutes, i_seconds))
-    scheduler.start()
+    
+    async def close_session(self):
+        await self.session.close()
