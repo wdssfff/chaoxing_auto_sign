@@ -1,5 +1,4 @@
-import os
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI
 from cloud_sign import *
 
 app = FastAPI()
@@ -7,8 +6,25 @@ app = FastAPI()
 
 @app.post('/sign')
 @app.get('/sign')
-async def sign(*, username: str, password: str, schoolid=None, sckey=None,
-               background_tasks: BackgroundTasks):
-    user_info = {'username': username, 'password': password, 'schoolid': schoolid}
-    background_tasks.add_task(interface, user_info, sckey)
-    return {'message': '您的请求已收到,签到任务正在排队进行中'}
+async def sign(*,
+               username: str,
+               password: str,
+               schoolid=None,
+               sckey=None,
+               enc=None):
+    """
+    :params username: 用户名
+    :params password: 密码
+    :params schoolid: 学校id,
+    :params sckey: 推送id,
+    :params enc: 二维码签到所需字典
+    """
+    payload = {
+        'username': username,
+        'password': password,
+        'schoolid': schoolid,
+        'sckey': sckey,
+        'enc': enc,
+    }
+    result = await interface(payload)
+    return result

@@ -17,10 +17,6 @@ class SignMongoDB(object):
 
     def to_save_cookie(self, cookie: dict):
         """保存cookie到数据库"""
-        # 如果cookie失效，先从数据库删除旧的cookie
-        # 再保存新的cookie
-        # todo
-        self.collection.update_one({"username": self.username}, {"$unset": {"cookie": ""}})
         self.collection.update_one({"username": self.username}, {"$set": {"cookie": cookie}})
 
     def to_get_all_classid_and_courseid(self) -> list:

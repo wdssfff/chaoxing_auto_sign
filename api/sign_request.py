@@ -1,10 +1,11 @@
 import json
 import time
+from aiohttp import ClientSession
 
 
-class Sign(object):
-
-    def __init__(self, session, classid, courseid, activeid, sign_type):
+class SignRequest(object):
+    
+    def __init__(self, session: ClientSession, classid, courseid, activeid, sign_type):
         self.classid = classid
         self.courseid = courseid
         self.activeid = activeid
@@ -14,33 +15,38 @@ class Sign(object):
             'Accept-Encoding': 'gzip, deflate',
             'Accept-Language': 'zh-CN,zh;q=0.9',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36'}
-
-    def general_sign(self):
-        """普通签到"""
-        r = self.session.get(
-            'https://mobilelearn.chaoxing.com/widget/sign/pcStuSignController/preSign?activeId={}&classId={}&fid=&courseId={}'.format(
-                self.activeid,
-                self.classid,
-                self.courseid),
-            headers=self.headers,
-            verify=False)
-        return {
-            'date': time.strftime("%m-%d %H:%M", time.localtime()),
-            'status': 3000
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.100 Safari/537.36'
         }
-
-    def hand_sign(self):
+    
+    async def general_sign(self):
+        """普通签到"""
+        params = {
+            'activeId': self.activeid,
+            'classId': self.classid,
+            'fid': '',
+            'courseId': self.courseid
+        }
+        async with self.session.request('GET',
+                                        'https://mobilelearn.chaoxing.com/widget/sign/pcStuSignController/preSign',
+                                        params=params, headers=self.headers, verify_ssl=False) as resp:
+            assert resp.status == 200
+            return {
+                'date': time.strftime("%m-%d %H:%M", time.localtime()),
+                'status': 3000
+            }
+    
+    async def hand_sign(self):
         """手势签到"""
         hand_sign_url = "https://mobilelearn.chaoxing.com/widget/sign/pcStuSignController/signIn?&courseId={}&classId={}&activeId={}".format(
             self.courseid, self.classid, self.activeid)
-        r = self.session.get(hand_sign_url, headers=self.headers, verify=False)
+        async with self.session.request('GET', hand_sign_url, headers=self.headers, verify_ssl=False) as resp:
+            assert resp.status == 200
         return {
             'date': time.strftime("%m-%d %H:%M", time.localtime()),
             'status': 3001
         }
-
-    def qcode_sign(self):
+    
+    async def qcode_sign(self):
         """二维码签到"""
         params = {
             'name': '',
@@ -53,15 +59,15 @@ class Sign(object):
             'fid': '',
             'appType': '15'
         }
-        self.session.get(
-            'https://mobilelearn.chaoxing.com/pptSign/stuSignajax',
-            params=params)
+        async with self.session.request('GET', 'https://mobilelearn.chaoxing.com/pptSign/stuSignajax',
+                                        params=params) as resp:
+            assert resp.status == 200
         return {
             'date': time.strftime("%m-%d %H:%M", time.localtime()),
             'status': 3004
         }
-
-    def addr_sign(self):
+    
+    async def addr_sign(self):
         """位置签到"""
         params = {
             'name': '',
@@ -75,15 +81,15 @@ class Sign(object):
             'appType': '15',
             'ifTiJiao': '1'
         }
-        self.session.get(
-            'https://mobilelearn.chaoxing.com/pptSign/stuSignajax',
-            params=params)
+        async with self.session.request('GET', 'https://mobilelearn.chaoxing.com/pptSign/stuSignajax',
+                                        params=params) as resp:
+            assert resp.status == 200
         return {
             'date': time.strftime("%m-%d %H:%M", time.localtime()),
             'status': 3003
         }
-
-    def tphoto_sign(self):
+    
+    async def tphoto_sign(self):
         """拍照签到"""
         params = {
             'name': '',
@@ -98,14 +104,14 @@ class Sign(object):
             'ifTiJiao': '1',
             'objectId': 'da82dee9f197a1ab22614efd39e20c14'
         }
-        self.session.get(
-            'https://mobilelearn.chaoxing.com/pptSign/stuSignajax',
-            params=params)
+        async with self.session.request('GET', 'https://mobilelearn.chaoxing.com/pptSign/stuSignajax',
+                                        params=params) as resp:
+            assert resp.status == 200
         return {
             'date': time.strftime("%m-%d %H:%M", time.localtime()),
             'status': 3002
         }
-
+    
     # def __get_token(self):
     #     """获取上传文件所需参数token"""
     #     url = 'https://pan-yz.chaoxing.com/api/token/uservalid'

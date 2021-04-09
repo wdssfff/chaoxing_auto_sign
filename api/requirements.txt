@@ -1,4 +1,5 @@
 requests
+aiohttp
 lxml
 BeautifulSoup4
 uvicorn
