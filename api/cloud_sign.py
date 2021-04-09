@@ -65,6 +65,7 @@ class AutoSign(object):
                 print("cookies失效")
                 return False
             else:
+                # todo 这一句应该提到外面
                 client.cookie_jar.update_cookies(cookies)
                 print("cookies有效")
                 return True
@@ -119,7 +120,7 @@ class AutoSign(object):
             
             async with client.request('GET', 'http://mooc1-2.chaoxing.com/visit/interaction',
                                       headers=self.headers) as resp:
-                assert resp.status_code == 200
+                assert resp.status == 200
                 text = await resp.text()
             soup = BeautifulSoup(text, "lxml")
             courseId_list = soup.find_all('input', attrs={'name': 'courseId'})
@@ -229,7 +230,6 @@ class AutoSign(object):
                     }
                     # 将签到成功activeid保存至数据库
                     self.mongo.to_save_istext_activeid(d['activeid'])
-                    res.append(sign_msg)
         if res:
             final_msg = {
                 'msg': 2001,
