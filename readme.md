@@ -1,3 +1,11 @@
+关于扫码签到，API版本新增字段`enc`，这对于动态二维码有些许帮助。
+
+那么，我将如何获得`enc`参数呢？
+
+您需要解码二维码，使用手机扫一扫 或者 [草料二维码](https://cli.im/deqr) 反解码
+
+![](http://cdn.z2blog.com/123.gif)
+
 ## 功能描述
 
 - 登录方式：
@@ -113,7 +121,8 @@ params = {
     'username': 'xxxxx',
     'password': 'xxxxx',
     'schoolid': '',
-    'sckey': ''
+    'sckey': '',
+    'enc': ''  #  扫码签到必填
 }
 requests.post('http://101.89.182.58:9090/sign', params=params)
 
@@ -131,9 +140,10 @@ requests.get('http://101.89.182.58:9090/sign?username={}&password={}'.format(use
 | 请求方式 |   参数   |  说明  | 是否必须 |
 | :------: | :------: | :----: | :------: |
 |          | username |  账号  |    是    |
-|   **POST/GET**   | password |  密码  |    是    |
-|          | schoolid | 学校ID |    否    |
+|     | password |  密码  |    是    |
+|   **POST/GET**       | schoolid | 学校ID |    否    |
 | | sckey | server酱key | 否 |
+| | enc | 扫码签到参数 | 扫码签到必填 |
 
 
 **如果是学号登录，fid参数必填**
