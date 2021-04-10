@@ -1,4 +1,5 @@
 # -*- coding: utf8 -*-
+import os
 import re
 import json
 from urllib import parse
@@ -7,14 +8,20 @@ import requests
 
 # 配置学习通账号密码
 USER_INFO = {
-    'username': 'xxxxx',
-    'password': 'xxxxx',
+    'username': '',
+    'password': '',
     'schoolid': '',  # 学号登录才需要填写
 }
 
+if USER_INFO['username'] == '':
+    enc_dict = os.environ
+    USER_INFO['username'] = enc_dict.get('username')
+    USER_INFO['password'] = enc_dict.get('password')
+    USER_INFO['schoolid'] = enc_dict.get('schoolid', '')
+
 
 class HeathReport(object):
-
+    
     def __init__(self, username: str = "", password: str = "", schoolid: str = ""):
         """
         :params username: 手机号或学号
@@ -32,7 +39,7 @@ class HeathReport(object):
         self._session = requests.session()
         self._session.headers = headers
         self.form_data = []
-
+    
     def _login(self):
         """
         登录: 支持手机和邮箱登录
@@ -45,13 +52,13 @@ class HeathReport(object):
             "schoolid": self._schoolid if self._schoolid else ""
         }
         resp = self._session.get(login_api, params=params)
-
+        
         if resp.status_code == 403:
             raise Exception("403，登录请求被拒绝")
-
+        
         data = json.loads(resp.text)
         return data
-
+    
     def _get_last_heath_info(self) -> dict:
         """
         获取上次提交的健康信息
@@ -69,7 +76,7 @@ class HeathReport(object):
         if not raw_data['data']:
             raise Exception('获取上次提交数据为空，可能为今日已提交')
         return raw_data
-
+    
     @staticmethod
     def clean_heath_info(raw_data: dict) -> list:
         form_data = raw_data['data']['formsUser']['formData']
@@ -81,34 +88,38 @@ class HeathReport(object):
         not_show.extend([38, 39, 41, 42])
         for f in form_data:
             f.update(d)
-
+            
             if f['id'] == 5:
-                f['fields'][0]['tip']['text'] = r"<p+style=\"text-align:+center;\"><span+style=\"font-size:+large;+font-weight:+bold;\">基本信息</span></p>"
+                f['fields'][0]['tip'][
+                    'text'] = r"<p+style=\"text-align:+center;\"><span+style=\"font-size:+large;+font-weight:+bold;\">基本信息</span></p>"
             elif f['id'] == 6:
-                f['fields'][0]['tip']['text'] = r"<p+style=\"text-align:+center;\"><span+style=\"font-size:+large;+font-weight:+bold;\">健康状况</span></p>"
+                f['fields'][0]['tip'][
+                    'text'] = r"<p+style=\"text-align:+center;\"><span+style=\"font-size:+large;+font-weight:+bold;\">健康状况</span></p>"
             elif f['id'] == 36:
-                f['fields'][0]['tip']['text'] = r"<p+style=\"text-align:+center;\"><span+style=\"font-size:+large;+font-weight:+bold;\">出行情况</span></p>"
+                f['fields'][0]['tip'][
+                    'text'] = r"<p+style=\"text-align:+center;\"><span+style=\"font-size:+large;+font-weight:+bold;\">出行情况</span></p>"
             elif f['id'] == 8:
                 f['fields'][0]['values'][0]['val'] = "健康 "
                 f['fields'][0]['options'][0]['title'] = "健康 "
-
+            
             if f['id'] in not_show:
                 f['isShow'] = False
             else:
                 f['isShow'] = True
         # print(form_data)
         return form_data
-
+    
     def form_data_to_urlencoded(self, params: dict) -> str:
         """
         dict -> urlencoded
         """
         payload = parse.urlencode(params)
         str_form_data = str(self.form_data)
-        str_form_data = str_form_data.replace('\'', '\"').replace('False', 'false').replace('True', 'true').replace(r"\\", "\\")
+        str_form_data = str_form_data.replace('\'', '\"').replace('False', 'false').replace('True', 'true').replace(
+            r"\\", "\\")
         payload += quote(str_form_data, 'utf-8')
         return payload
-
+    
     def _edit_report(self, hid: str, enc: str) -> dict:
         """
         上报健康信息
@@ -124,7 +135,7 @@ class HeathReport(object):
         payload = self.form_data_to_urlencoded(params)
         resp = self._session.post(edit_api, data=payload)
         return json.loads(resp.text)
-
+    
     def _daily_report(self, check_code) -> dict:
         """
         上报今日信息
@@ -142,7 +153,7 @@ class HeathReport(object):
         payload = self.form_data_to_urlencoded(params)
         resp = self._session.post(save_api, data=payload)
         return json.loads(resp.text)
-
+    
     def _request_form_page(self):
         """
         请求表单页面
@@ -154,7 +165,7 @@ class HeathReport(object):
                    "&appKey=127G2jhIhl05mw3S&id=7185&enc=f837c93e0de9d9ad82db707b2c27241e&state=39037" \
                    "&formAppId=&fidEnc=b06cba4a51ac2253"
         return self._session.get(url=form_url)
-
+    
     @staticmethod
     def _get_check_code(resp):
         """
@@ -169,7 +180,7 @@ class HeathReport(object):
             return code[0]
         else:
             raise Exception("校验码获取失败")
-
+    
     def _to_begin(self):
         """
         调用登录及健康信息获取函数
@@ -177,7 +188,7 @@ class HeathReport(object):
         self._login()
         raw_data = self._get_last_heath_info()
         self.form_data = self.clean_heath_info(raw_data)
-
+    
     def edit_report(self, hid: str, enc: str) -> dict:
         """
         修改已上报的健康信息
@@ -187,7 +198,7 @@ class HeathReport(object):
         """
         self._to_begin()
         return self._edit_report(hid, enc)
-
+    
     def daily_report(self) -> dict:
         """
         健康信息上报入口
@@ -203,7 +214,7 @@ def main_handler(event=None, context=None):
         query: dict = event.get("queryString", "")
         if query:
             username, password, schoolid = query.get("name", ''), query.get("pwd", ''), query.get("schoolid", "")
-
+            
             if not username or not password:
                 return {
                     "message": "账号密码不能为空"
