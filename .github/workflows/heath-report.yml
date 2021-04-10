@@ -3,7 +3,7 @@ name: Heath Report Task
 on:
   push:
     branches:
-      - master
+      - latest
   schedule:
 #    - cron: 15 4/12 * * *
     - cron: 10 * * * *
