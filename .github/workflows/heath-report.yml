@@ -24,8 +24,8 @@ jobs:
         pip install requests
     - name: Heath Sign
       env:
-        username: ${{ secrets.username }}
-        password: ${{ secrets.password }}
+        username: ${{ secrets.USERNAME }}
+        password: ${{ secrets.PASSWORD }}
       run: |
         cd heath
         python main.py
