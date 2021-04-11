@@ -8,7 +8,7 @@ on:
     # 每天早上十点1分执行
     # GMT 时间
     # - cron: "0 1 2 * *"
-    - cron: "* 1 * * *"
+    - cron: "0 * * * *"
 
 jobs:
   deploy:
