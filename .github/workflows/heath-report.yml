@@ -6,7 +6,9 @@ on:
       - latest
   schedule:
     # 每天早上十点1分执行
-    - cron: "0 1 10 * *"
+    # GMT 时间
+    # - cron: "0 1 2 * *"
+    - cron: "* 1 * * *"
 
 jobs:
   deploy:
@@ -22,7 +24,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install setuptools wheel twine
         pip install requests
-    - name: Heath Sign
+    - name: Runing Sign Task
       env:
         username: ${{ secrets.USERNAME }}
         password: ${{ secrets.PASSWORD }}

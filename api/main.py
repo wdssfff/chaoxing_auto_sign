@@ -1,4 +1,6 @@
+import uvicorn
 from fastapi import FastAPI
+
 from cloud_sign import *
 
 app = FastAPI()
@@ -28,3 +30,6 @@ async def sign(*,
     }
     result = await interface(payload)
     return result
+
+
+uvicorn.run(app)

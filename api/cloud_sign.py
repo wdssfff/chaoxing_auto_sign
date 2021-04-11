@@ -118,7 +118,8 @@ class AutoSign(object):
         res = self.mongo.to_get_all_classid_and_courseid()
         if not res:
             
-            async with client.request('GET', 'http://mooc1-2.chaoxing.com/visit/interaction',
+            async with client.request('GET',
+                                      'http://mooc1-2.chaoxing.com/visit/interaction',
                                       headers=self.headers) as resp:
                 assert resp.status == 200
                 text = await resp.text()
