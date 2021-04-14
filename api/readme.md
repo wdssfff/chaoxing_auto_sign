@@ -1,13 +1,3 @@
-## TODO
-
-- 配合代理池
-
-- 增加请求频率限制
-
-- 优化后台任务执行效率
-
-- 优化微信推送功能
-
 ## 环境：
 
 python3.7 , mongodb
@@ -101,6 +91,57 @@ screen -r fastapi
 ```
 
 然后按`Ctrl + C`结束
+
+## 接口使用
+
+```
+http://101.89.182.58:9090/sign
+```
+
+请求代码示例：
+```python
+import requests
+
+# POST
+params = {
+    'username': 'xxxxx',
+    'password': 'xxxxx',
+    'schoolid': '',
+    'sckey': '',
+    'enc': ''  #  扫码签到必填
+}
+requests.post('http://101.89.182.58:9090/sign', params=params)
+
+# GET
+username = 'xxx'
+password = 'xxx'
+requests.get('http://101.89.182.58:9090/sign?username={}&password={}'.format(username, password))
+```
+
+在线接口调试：
+
+<http://101.89.182.58:9090/docs#/default/sign_sign_get>
+
+
+| 请求方式 |   参数   |  说明  | 是否必须 |
+| :------: | :------: | :----: | :------: |
+|          | username |  账号  |    是    |
+|     | password |  密码  |    是    |
+|   **POST/GET**       | schoolid | 学校ID |    否    |
+| | sckey | server酱key | 否 |
+| | enc | 扫码签到参数 | 扫码签到必填 |
+
+
+**如果是学号登录，fid参数必填**
+
+### 如何获取FID
+关于学号登录方式，有一个额外参数`schoolid`
+
+http://passport2.chaoxing.com/login
+
+动图演示：
+
+![2020/04/15/cdf5a0415014614.gif](http://cdn.z2blog.com/2020/04/15/cdf5a0415014614.gif)
 
 
 
