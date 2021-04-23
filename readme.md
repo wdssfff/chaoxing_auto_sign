@@ -111,3 +111,8 @@ https://github.com/mkdir700/chaoxing_auto_sign/blob/master/api/readme.md
 | https://github.com/aihuahua-522/chaoxing-testforAndroid | Java       | 学习通（超星）自动签到               |
 | https://github.com/yuban10703/chaoxingsign              | Python     | 超星学习通自动签到                   |
 | https://github.com/SSmJaE/XueXiTonsSign_Electron        | TypeScript | 基于Electron，桌面端，GUI，签到队列            |
+
+
+## 鸣谢
+
+[Jetbrains](https://www.jetbrains.com/)

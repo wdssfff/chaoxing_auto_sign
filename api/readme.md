@@ -65,7 +65,7 @@ pip install -r requirements.txt
 ## 运行程序
 
 ```
-uvicorn main:app --host 0.0.0.0 --port 9090
+python main.py
 ```
 
 访问`ip:9090`即可访问
