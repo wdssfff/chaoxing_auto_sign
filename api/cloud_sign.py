@@ -201,7 +201,8 @@ class AutoSign(object):
     async def start_sign_tasks(self, client):
         """开始所有签到任务"""
         tasks = []
-        res = []
+        success = []
+        error = []
         # 获取所有课程的classid和course_id
         classid_courseId = await self.get_all_classid(client)
         
@@ -222,21 +223,37 @@ class AutoSign(object):
                         d['sign_type'],
                         client
                     )
-                    
-                    # 签到课程， 签到时间， 签到状态
-                    sign_msg = {
-                        'name': d['classname'],
-                        'date': s['date'],
-                        'status': STATUS_CODE_DICT[s['status']]
-                    }
-                    # 将签到成功activeid保存至数据库
-                    self.mongo.to_save_istext_activeid(d['activeid'])
-        if res:
-            final_msg = {
+                    if '成功' in STATUS_CODE_DICT[s['status']]:
+                        # 签到课程， 签到时间， 签到状态
+                        sign_msg = {
+                            'name': d['classname'],
+                            'date': s['date'],
+                            'status': STATUS_CODE_DICT[s['status']]
+                        }
+                        success.append(sign_msg)
+                        # 将签到成功activeid保存至数据库
+                        self.mongo.to_save_istext_activeid(d['activeid'])
+                    else:
+                        sign_msg = {
+                            'name': d['classname'],
+                            'date': s['date'],
+                            'status': STATUS_CODE_DICT[s['status']]
+                        }
+                        error.append(sign_msg)
+        final_msg = []
+        if success:
+            success_msg = {
                 'msg': 2001,
-                'detail': res,
+                'detail': success
             }
-        else:
+            final_msg.append(success_msg)
+        if error:
+            error_msg = {
+                'msg': 2002,
+                'detail': error
+            }
+            final_msg.append(error_msg)
+        if not final_msg:
             final_msg = {
                 'msg': 2000,
                 'detail': STATUS_CODE_DICT[2000]
