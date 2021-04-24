@@ -1,3 +1,11 @@
+# MONGODB连接信息
+MONGO_HOST: str = 'localhost'
+MONGO_PORT: int = 27017
+# 用户名
+MONGO_USER_NAME = None
+# 密码
+MONGO_USER_PASS = None
+
 # 状态码
 STATUS_CODE_DICT = {
     1000: '登录成功',

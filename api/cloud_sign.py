@@ -8,7 +8,7 @@ import aiohttp
 from lxml import etree
 from bs4 import BeautifulSoup
 
-from config import *
+from config import STATUS_CODE_DICT
 from db_handler import *
 from sign_request import *
 

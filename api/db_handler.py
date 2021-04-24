@@ -1,11 +1,19 @@
 from pymongo import MongoClient
 
+import config
+
 
 class SignMongoDB(object):
 
     def __init__(self, username: str):
-        self.client = MongoClient("mongodb://localhost:27017/")
+        self.client = MongoClient(
+            host=config.MONGO_HOST,
+            port=config.MONGO_PORT,
+        )
         database = self.client["signweb"]
+        if config.MONGO_USER_NAME is not None:
+            database.authenticate(config.MONGO_USER_NAME, config.MONGO_USER_PASS)
+        
         self.collection = database["users"]
         self.username = username
         if not self.collection.find_one({"username": username}):
