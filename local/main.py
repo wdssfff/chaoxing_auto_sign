@@ -67,13 +67,28 @@ def sign():
 
 
 @click.command()
-def timing():
+@click.option('--hours','-h',  type=int)
+@click.option('--minutes','-m',  type=int)
+@click.option('--seconds','-s',  type=int)
+def timing(hours, minutes, seconds):
     """
     定时签到任务
+    -h, --hours 小时
+    -m, --minutes 分钟
+    -s, --seconds 秒
     """
     scheduler = BlockingScheduler()
-    scheduler.add_job(start, 'interval', hours=i_hours, minutes=i_minutes, seconds=i_seconds)
-    print('已开启定时执行,每间隔< {}时{}分{}秒 >执行一次签到任务'.format(i_hours, i_minutes, i_seconds))
+    if hours is None:
+        hours = HOURS
+
+    if minutes is None:
+        minutes = MINUTES
+
+    if seconds is None:
+        seconds = SECONDS
+
+    scheduler.add_job(start, 'interval', hours=hours, minutes=minutes, seconds=seconds)
+    print('已开启定时执行,每间隔< {}时{}分{}秒 >执行一次签到任务'.format(hours, minutes, seconds))
     scheduler.start()
 
 
