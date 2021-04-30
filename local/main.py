@@ -45,8 +45,13 @@ async def qcode_run(enc):
 
 
 def start():
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    asyncio.run(local_run())
+    # asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    try:
+        loop = asyncio.get_event_loop()
+    except:
+        loop = asyncio.new_event_loop()
+
+    loop.run_until_complete(local_run())
 
 
 @click.group()
@@ -55,7 +60,18 @@ def cli():
 
 
 @click.command()
+def sign():
+    """
+    立即签到一次
+    """
+    start()
+
+
+@click.command()
 def timing():
+    """
+    定时签到任务
+    """
     scheduler = BlockingScheduler()
     scheduler.add_job(start, 'interval', hours=i_hours, minutes=i_minutes, seconds=i_seconds)
     print('已开启定时执行,每间隔< {}时{}分{}秒 >执行一次签到任务'.format(i_hours, i_minutes, i_seconds))
@@ -65,11 +81,15 @@ def timing():
 @click.command()
 @click.option('--enc')
 def qcode_sign(enc):
+    """
+    二维码签到
+    """
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(qcode_run(enc))
 
 
 if __name__ == '__main__':
+    cli.add_command(sign)
     cli.add_command(timing)
     cli.add_command(qcode_sign)
     cli()
