@@ -45,7 +45,6 @@ async def qcode_run(enc):
 
 
 def start():
-    # asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     try:
         loop = asyncio.get_event_loop()
     except:
@@ -84,8 +83,8 @@ def qcode_sign(enc):
     """
     二维码签到
     """
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    asyncio.run(qcode_run(enc))
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(qcode_run(enc))
 
 
 if __name__ == '__main__':
