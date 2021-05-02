@@ -2,6 +2,7 @@
 import os
 import re
 import json
+from datetime import datetime
 from urllib import parse
 from urllib.parse import quote
 import requests
@@ -214,15 +215,16 @@ class HeathReport(object):
 def server_chan_send(msg, key):
     """server酱将消息推送"""
     params = {
-        'title': '健康日报打卡消息来啦！',
+        'title': '健康日报打卡消息来啦！\n{}'.format(datetime.now().strftime('%Y年%m月%d日 %H:%M:%D')),
         'desp': msg
     }
     
-    requests.request(
+    resp = requests.request(
         method="GET",
         url="https://sctapi.ftqq.com/{}.send?title=messagetitle".format(key),
         params=params
     )
+    print(resp.text)
 
 
 def main_handler(event=None, context=None):

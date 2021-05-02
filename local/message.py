@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from config import SERVER_CHAN_SEND_KEY
 
 async def server_chan_send(dataset, session):
@@ -12,7 +14,7 @@ async def server_chan_send(dataset, session):
         for data in dataset:
             msg += msg_template.format(data['name'], data['date'], data['status'])
     else:
-        msg = "当前暂无签到任务！"
+        msg = "当前暂无签到任务！\{}".format(datetime.now().strftime('%Y年%m月%d日 %H:%M:%D'))
     
     params = {
         'title': '您的网课签到消息来啦！',
