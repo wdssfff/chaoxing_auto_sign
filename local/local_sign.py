@@ -433,7 +433,6 @@ class AutoSign(object):
                 if resp:
                     # 签到课程， 签到时间， 签到状态
                     sign_msg = {
-                        'username': self.username,
                         'name': d['classname'],
                         'date': resp['date'],
                         'status': resp['status']
