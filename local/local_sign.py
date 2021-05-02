@@ -399,7 +399,7 @@ class AutoSign(object):
         else:
             return await self.general_sign(classid, courseid, activeid)
     
-    async def send_sign_result(self, results: List[Dict], ):
+    async def send_sign_result(self, results: List[Dict]):
         """
         发送签到结果
         """
@@ -433,6 +433,7 @@ class AutoSign(object):
                 if resp:
                     # 签到课程， 签到时间， 签到状态
                     sign_msg = {
+                        'username': self.username,
                         'name': d['classname'],
                         'date': resp['date'],
                         'status': resp['status']
@@ -445,19 +446,19 @@ class AutoSign(object):
                     self.save_activeid(d['activeid'])
         
         # 将签到结果发送
-        await self.send_sign_result(res)
+        # await self.send_sign_result(res)
         
-        if res:
-            final_msg = {
-                'msg': 2001,
-                'detail': res,
-            }
-        else:
-            final_msg = {
-                'msg': 2000,
-                'detail': STATUS_CODE_DICT[2000]
-            }
-        return final_msg
+        # if res:
+        #     final_msg = {
+        #         'msg': 2001,
+        #         'detail': res,
+        #     }
+        # else:
+        #     final_msg = {
+        #         'msg': 2000,
+        #         'detail': STATUS_CODE_DICT[2000]
+        #     }
+        return res
     
     async def close_session(self):
         await self.session.close()
