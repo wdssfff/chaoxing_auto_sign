@@ -7,8 +7,8 @@ on:
   schedule:
     # 每天早上十点1分执行
     # GMT 时间
-    # - cron: "0 1 2 * *"
-    - cron: "0 * * * *"
+     - cron: "0 1 2 * *"
+    # - cron: "0 * * * *"
 
 jobs:
   deploy:
@@ -28,6 +28,7 @@ jobs:
       env:
         username: ${{ secrets.USERNAME }}
         password: ${{ secrets.PASSWORD }}
+        send_key: ${{ secrets.SENDKEY }}
       run: |
         cd heath
         python main.py
