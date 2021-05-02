@@ -14,7 +14,8 @@ USER_INFO = {
     'schoolid': '',  # 学号登录才需要填写
 }
 # Server酱消息推送SendKey, 选填
-SERVER_CHAN_SEND_KEY = enc_dict.get('send_key', 'SCT35582ThOZuPuRV4F81vGUMiJ4GXX1x')
+SendKey = ''
+SERVER_CHAN_SEND_KEY = enc_dict.get('send_key', SendKey if SendKey != '' else None)
 
 if USER_INFO['username'] == '':
     USER_INFO['username'] = enc_dict.get('username')
