@@ -6,15 +6,17 @@ from urllib import parse
 from urllib.parse import quote
 import requests
 
-# 配置学习通账号密码
+enc_dict = os.environ
+# 配置学习通账号密码， 必填
 USER_INFO = {
     'username': '',
     'password': '',
     'schoolid': '',  # 学号登录才需要填写
 }
+# Server酱消息推送SendKey, 选填
+SERVER_CHAN_SEND_KEY = enc_dict.get('send_key', 'SCT35582ThOZuPuRV4F81vGUMiJ4GXX1x')
 
 if USER_INFO['username'] == '':
-    enc_dict = os.environ
     USER_INFO['username'] = enc_dict.get('username')
     USER_INFO['password'] = enc_dict.get('password')
     USER_INFO['schoolid'] = enc_dict.get('schoolid', '')
@@ -207,22 +209,53 @@ class HeathReport(object):
         r = self._request_form_page()
         check_code = self._get_check_code(r)
         return self._daily_report(check_code=check_code)
+    
+def server_chan_send(msg, key):
+    """server酱将消息推送"""
+    params = {
+        'title': '健康日报打卡消息来啦！',
+        'desp': msg
+    }
+    
+    requests.request(
+        method="GET",
+        url="https://sctapi.ftqq.com/{}.send?title=messagetitle".format(key),
+        params=params
+    )
 
 
 def main_handler(event=None, context=None):
+    result = None
+    send_key = None
     if event is not None:
         query: dict = event.get("queryString", "")
         if query:
-            username, password, schoolid = query.get("name", ''), query.get("pwd", ''), query.get("schoolid", "")
+            username = query.get("name", None)
+            password = query.get("pwd", None)
+            schoolid = query.get("schoolid", "")
+            send_key = query.get("skey", None)
             
             if not username or not password:
                 return {
                     "message": "账号密码不能为空"
                 }
-            h = HeathReport(username=username, password=password, schoolid=schoolid)
-            return h.daily_report()
-    h = HeathReport(username=USER_INFO['username'], password=USER_INFO['password'], schoolid=USER_INFO['schoolid'])
-    return h.daily_report()
+            
+            try:
+                h = HeathReport(username=username, password=password, schoolid=schoolid)
+                result = h.daily_report()
+            except Exception as e:
+                result = e
+    else:
+        try:
+            send_key = SERVER_CHAN_SEND_KEY if SERVER_CHAN_SEND_KEY != '' else SERVER_CHAN_SEND_KEY
+            h = HeathReport(username=USER_INFO['username'], password=USER_INFO['password'], schoolid=USER_INFO['schoolid'])
+            result = h.daily_report()
+        except Exception as e:
+            result = e
+
+    if send_key is not None:
+        server_chan_send(result, send_key)
+    return result
 
 
 if __name__ == '__main__':

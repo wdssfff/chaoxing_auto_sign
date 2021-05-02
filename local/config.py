@@ -3,8 +3,8 @@
 # 学习通账号密码,可添加多个账号
 USER_INFOS = [
     {
-        'username': 'xxxx',
-        'password': 'xxxx',
+        'username': '',
+        'password': '',
         'schoolid': ''  # 学号登录才需要填写
     },
 ]
@@ -15,11 +15,7 @@ MINUTES = 5
 SECONDS = 0
 
 # server酱
-SERVER_CHAN_SCKEY = 'xxxx'  # 申请地址http://sc.ftqq.com/3.version
-SERVER_CHAN = {
-    'status': True,  # 如果关闭server酱功能，请改为False
-    'url': 'https://sc.ftqq.com/{}.send'.format(SERVER_CHAN_SCKEY)
-}
+SERVER_CHAN_SEND_KEY = ''  # 申请地址http://sc.ftqq.com/3.version
 
 # 学习通账号cookies缓存文件路径
 COOKIES_PATH = "./"

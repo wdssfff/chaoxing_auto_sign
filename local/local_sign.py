@@ -13,6 +13,7 @@ from lxml import etree
 from bs4 import BeautifulSoup
 
 from config import *
+from message import server_chan_send
 
 
 class AutoSign(object):
@@ -382,14 +383,6 @@ class AutoSign(object):
                 files=files
             ) as resp:
                 text = await resp.text()
-            # res = self.session.post(
-            #     url,
-            #     data={
-            #         'puid': uid,
-            #         '_token': self.get_token()
-            #     },
-            #     files=files,
-            #     headers=self.headers)
             res_dict = json.loads(text)
             return res_dict['objectId']
     
@@ -405,6 +398,12 @@ class AutoSign(object):
             return await self.tphoto_sign(activeid)
         else:
             return await self.general_sign(classid, courseid, activeid)
+    
+    async def send_sign_result(self, results: List[Dict], ):
+        """
+        发送签到结果
+        """
+        await server_chan_send(results, self.session)
     
     async def start_sign_task(self):
         """开始所有签到任务"""
@@ -444,6 +443,9 @@ class AutoSign(object):
                         continue
                     # 签到成功后，新增activeid
                     self.save_activeid(d['activeid'])
+        
+        # 将签到结果发送
+        await self.send_sign_result(res)
         
         if res:
             final_msg = {

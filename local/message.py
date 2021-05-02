@@ -1,14 +1,27 @@
-def server_chan_send(msgs):
-    """server酱将消息推送至微信"""
-    desp = ''
-    for msg in msgs:
-        desp = '|  **课程名**  |   {}   |\r\r| :----------: | :---------- |\r\r'.format(
-            msg['name'])
-        desp += '| **签到时间** |   {}   |\r\r'.format(msg['date'])
-        desp += '| **签到状态** |   {}   |\r\r'.format(msg['status'])
+from config import SERVER_CHAN_SEND_KEY
+
+async def server_chan_send(dataset, session):
+    """server酱将消息推送"""
+    if SERVER_CHAN_SEND_KEY == '':
+        return
+    
+    if dataset:
+        msg = ("| 课程名 | 签到时间 | 签到状态 |\n"
+               "| :----: | :------: | :------: |\n")
+        msg_template = "|  {}  | {}  |    {}    |"
+        for data in dataset:
+            msg += msg_template.format(data['name'], data['date'], data['status'])
+    else:
+        msg = "当前暂无签到任务！"
     
     params = {
-        'text': '您的网课签到消息来啦！',
-        'desp': desp
+        'title': '您的网课签到消息来啦！',
+        'desp': msg
     }
-    requests.get(SERVER_CHAN['url'], params=params)
+    
+    async with session.request(
+        method="GET",
+        url="https://sctapi.ftqq.com/{}.send?title=messagetitle".format(SERVER_CHAN_SEND_KEY),
+        params=params
+    ) as resp:
+        text = await resp.text()
